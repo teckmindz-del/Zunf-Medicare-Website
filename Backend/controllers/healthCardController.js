@@ -1,6 +1,6 @@
 const HealthCard = require('../models/healthCardModel');
 const QRCode = require('qrcode');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const path = require('path');
 const fs = require('fs');
 
