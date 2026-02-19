@@ -18,7 +18,7 @@ const orderSchema = new mongoose.Schema(
   {
     customer: {
       name: { type: String, required: true },
-      email: { type: String, required: true }, // This will be the logged-in user's email if authenticated
+      email: { type: String, required: false }, // Use mobile as primary identifier now
       mobile: { type: String, required: true },
       age: { type: String, required: true },
       city: { type: String, required: true },

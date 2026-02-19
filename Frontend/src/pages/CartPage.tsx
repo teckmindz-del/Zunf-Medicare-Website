@@ -36,25 +36,31 @@ export default function CartPage() {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // If user is logged in, auto-fill email from user account
+  // If user is logged in, auto-fill name and mobile from user account
   useEffect(() => {
-    if (isAuthenticated && user?.email) {
+    if (isAuthenticated) {
       setFormData(prev => ({
         ...prev,
-        email: user.email,
+        name: user?.name || prev.name,
+        mobile: user?.mobile || prev.mobile,
       }));
     }
   }, [isAuthenticated, user]);
 
   // Convert phone number from 030 format to +92 format
   const convertPhoneNumber = (phone: string): string => {
+    // If it looks like an email or doesn't have digits, return as is
+    if (phone.includes('@') || !/[0-9]/.test(phone)) {
+      return phone;
+    }
+
     let cleaned = phone.replace(/\s|-|\(|\)/g, '');
 
     if (cleaned.startsWith('0')) {
       cleaned = '+92' + cleaned.substring(1);
-    } else if (cleaned.startsWith('92')) {
+    } else if (cleaned.startsWith('92') && cleaned.length >= 10) {
       cleaned = '+' + cleaned;
-    } else if (!cleaned.startsWith('+')) {
+    } else if (!cleaned.startsWith('+') && cleaned.length >= 7) {
       cleaned = '+92' + cleaned;
     }
 
@@ -76,7 +82,6 @@ export default function CartPage() {
 
     if (
       !formData.name.trim() ||
-      !formData.email.trim() ||
       !formData.mobile.trim() ||
       !formData.age.trim() ||
       !formData.city.trim()
@@ -85,10 +90,12 @@ export default function CartPage() {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      showToast("Please enter a valid email address", "error");
-      return;
+    if (formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        showToast("Please enter a valid email address", "error");
+        return;
+      }
     }
 
     if (formData.mobile.length < 10) {
@@ -116,22 +123,19 @@ export default function CartPage() {
 
       const convertedMobile = convertPhoneNumber(formData.mobile);
 
-      // If user is logged in, always use logged-in user's email for the order
-      const orderEmail = isAuthenticated && user?.email ? user.email : formData.email;
+      // If user is logged in, we can still pass user.email if available (it isn't), but it's optional
+      const orderEmail = formData.email || "";
 
-      // Store last used email separately (for reference, not for fetching orders)
-      if (formData.email && formData.email !== orderEmail) {
-        localStorage.setItem('lastOrderEmail', formData.email);
-      }
+      // Store last used mobile separately
+      localStorage.setItem('lastOrderMobile', convertedMobile);
 
       const payload = {
         customer: {
           name: formData.name,
-          email: orderEmail, // Use logged-in email if authenticated
+          email: orderEmail,
           mobile: convertedMobile,
           age: formData.age,
           city: formData.city,
-          lastUsedEmail: isAuthenticated && formData.email !== orderEmail ? formData.email : undefined, // Store last used email separately
         },
         preferredDate: formData.date || undefined,
         preferredTime: formData.time || undefined,
@@ -146,11 +150,11 @@ export default function CartPage() {
       const orderResponse = await createOrder(payload);
 
       clearCart();
+      setOrderPlaced(true);
       setFormData(initialFormState);
 
-      // Navigate to history page - if logged in, use logged-in email, otherwise use form email
-      const historyEmail = isAuthenticated && user?.email ? user.email : formData.email;
-      navigate(`/account?email=${encodeURIComponent(historyEmail)}`);
+      // Navigate to history page using mobile number
+      navigate(`/history?mobile=${encodeURIComponent(convertedMobile)}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Failed to place order. Please try again.");
     } finally {
@@ -612,24 +616,17 @@ export default function CartPage() {
 
                   <div>
                     <Label htmlFor="email" className="text-foreground">
-                      Email Address *
+                      Email Address (Optional)
                     </Label>
                     <Input
                       id="email"
                       name="email"
                       type="email"
-                      required
                       value={formData.email}
                       onChange={handleInputChange}
-                      placeholder="your.email@example.com"
-                      disabled={isAuthenticated && !!user?.email}
+                      placeholder="your.email@example.com (optional)"
                       className="mt-1 bg-white/50 backdrop-blur-md border-primary/30 focus:border-primary disabled:opacity-60 disabled:cursor-not-allowed"
                     />
-                    {isAuthenticated && user?.email && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Using your logged-in email address
-                      </p>
-                    )}
                   </div>
 
                   <div>

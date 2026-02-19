@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getLabTests, type LabTestsResponse, type LabTest } from "@/lib/api";
 import { useCart } from "@/contexts/cart-context";
+import { SEO } from "@/components/seo";
 import { labs } from "@/data/labs";
 
 // Map lab IDs to their logo files (reusing from LabDetailPage - ideal refactor: move to utils)
@@ -112,6 +113,10 @@ export default function TestDetailPage() {
 
     return (
         <div className="flex min-h-dvh flex-col bg-slate-50">
+            <SEO
+                title={`${test.name} at ${lab.name}`}
+                description={`Book the ${test.name} at ${lab.name}. ${test.description || "Get accurate results with Zunf Medicare."}`}
+            />
             <SiteHeader />
             <main className="flex-1 pt-24 pb-12">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6">

@@ -9,9 +9,15 @@ import { Team } from "@/components/sections/team";
 import { Cta } from "@/components/sections/cta";
 import { Footer } from "@/components/sections/footer";
 import { useEffect } from "react";
+import { SEO } from "@/components/seo";
 
 export default function HomePage() {
   useEffect(() => {
+    // The SEO component now handles title and meta description,
+    // so this manual update is no longer strictly necessary for SEO purposes,
+    // but can be kept if there's a specific reason for direct DOM manipulation.
+    // For consistency with the SEO component, these lines can be removed.
+
     // Update Title
     document.title = "Book Lab Tests Online & Diagnostic Services | Zunf Medicare";
 
@@ -29,6 +35,10 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
+      <SEO
+        title="Book Lab Tests Online & Diagnostic Services | Zunf Medicare"
+        description="Find trusted diagnostic labs across Pakistan and book lab tests online with confidence. Reliable and convenient services by Zunf Medicare."
+      />
       <SiteHeader />
       <main className="flex-1 md:-mt-16">
         <Hero />

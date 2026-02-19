@@ -1,8 +1,11 @@
 User-agent: *
+Disallow: /login
+Disallow: /signup
 Disallow: /admin
-Disallow: /health-card/auth
-Disallow: /health-card/form
-Disallow: /health-card/view
+Disallow: /account
+Disallow: /cart
+Disallow: /ehr
+Disallow: /history
+Disallow: /health-card/
 
 Sitemap: https://zunfmedicare.com/sitemap.xml
-

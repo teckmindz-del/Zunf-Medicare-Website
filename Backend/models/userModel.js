@@ -8,13 +8,7 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
+
     mobile: {
       type: String,
       required: true, // User wants to ask for phone number
@@ -25,10 +19,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    isEmailVerified: {
-      type: Boolean,
-      default: false,
-    },
+
     isMobileVerified: {
       type: Boolean,
       default: false,

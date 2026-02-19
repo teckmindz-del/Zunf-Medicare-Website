@@ -65,9 +65,9 @@ exports.createOrUpdateHealthCard = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !idCard || !phone || !email || !dateOfBirth || !gender || !address) {
+    if (!name || !idCard || !phone || !dateOfBirth || !gender || !address) {
       return res.status(400).json({
-        message: 'Name, CNIC/B-Form, Phone, Email, Date of Birth, Gender, and Address are required',
+        message: 'Name, CNIC/B-Form, Phone, Date of Birth, Gender, and Address are required',
       });
     }
 
@@ -457,23 +457,23 @@ exports.downloadHealthCard = async (req, res) => {
     }
 
     const html = generateCardHTML(healthCard);
-    
+
     const browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-    
+
     const page = await browser.newPage();
-    
+
     // Set viewport to match card dimensions exactly
     await page.setViewport({
       width: 340,
       height: 214,
       deviceScaleFactor: 2
     });
-    
+
     await page.setContent(html, { waitUntil: 'networkidle0' });
-    
+
     const pdfBuffer = await page.pdf({
       width: '85.6mm',  // Standard ID card width in mm (340px = 85.6mm at 96dpi)
       height: '53.98mm', // Standard ID card height in mm (214px = 53.98mm at 96dpi)
@@ -482,9 +482,9 @@ exports.downloadHealthCard = async (req, res) => {
       preferCSSPageSize: true,
       pageRanges: '1'
     });
-    
+
     await browser.close();
-    
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="health-card-${healthCard.name.replace(/\s+/g, '-')}.pdf"`);
     res.send(pdfBuffer);

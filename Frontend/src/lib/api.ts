@@ -24,7 +24,6 @@ export interface LabTestsResponse {
 
 export interface OrderCustomer {
   name: string;
-  email: string;
   mobile: string;
   age: string;
   city: string;
@@ -346,9 +345,9 @@ export async function deleteLead(leadId: string, token?: string): Promise<void> 
 /**
  * Get user orders by email
  */
-export async function getUserOrders(email: string): Promise<Order[]> {
+export async function getUserOrders(mobile: string): Promise<Order[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/orders?email=${encodeURIComponent(email)}`, {
+    const response = await fetch(`${API_BASE_URL}/orders?mobile=${encodeURIComponent(mobile)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { getLabTests, type LabTest, type LabTestsResponse } from "@/lib/api";
 import { useCart } from "@/contexts/cart-context";
+import { SEO } from "@/components/seo";
 
 // Map lab IDs to their logo files
 const getLabLogo = (labId: string): string | null => {
@@ -115,6 +116,10 @@ export default function LabDetailPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
+      <SEO
+        title={`${lab.name} Tests`}
+        description={`Browse and book diagnostic tests from ${lab.name} through Zunf Medicare.`}
+      />
       <SiteHeader />
       <main className="flex-1">
         {/* Header Section */}

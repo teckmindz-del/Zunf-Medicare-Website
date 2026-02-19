@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { MoveRight, Phone, MessageSquare, Camera } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { SEO } from "@/components/seo";
 
 const galleryImages = Array.from({ length: 17 }, (_, i) => ({
     id: i + 1,
@@ -25,6 +26,10 @@ export default function AboutPage() {
 
     return (
         <div className="flex min-h-dvh flex-col bg-background">
+            <SEO
+                title="About Zunf Medicare | Trusted Healthcare Services & Book your tests"
+                description="Learn about Zunf Medicare, a trusted healthcare provider offering quality medical services, diagnostic labs, and patient-focused solutions for better health outcomes."
+            />
             <SiteHeader />
             <main className="flex-1">
                 {/* Hero Section */}

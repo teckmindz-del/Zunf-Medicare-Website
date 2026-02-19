@@ -2,13 +2,9 @@ const User = require('../models/userModel');
 const PendingUser = require('../models/pendingUserModel');
 const jwt = require('jsonwebtoken');
 const messageService = require('../services/messageService');
-const emailService = require('../services/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '15d'; // 15 days
-
-// Note: Email is used as username/identifier only
-// All verification codes are sent via SMS to mobile number
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -25,10 +21,11 @@ const generateVerificationCode = () => {
  */
 exports.signup = async (req, res) => {
   try {
-    const { name, email, mobile, password } = req.body;
+    const { name, mobile, password } = req.body;
+    console.log('🔵 [SIGNUP] Request received:', { name, mobile, hasPassword: !!password });
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email, and password are required' });
+    if (!name || !password) {
+      return res.status(400).json({ message: 'Name and password are required' });
     }
 
     if (!mobile) {
@@ -36,61 +33,61 @@ exports.signup = async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ $or: [{ email }, { mobile }] });
+    console.log('🔵 [SIGNUP] Checking if user exists...');
+    const existingUser = await User.findOne({ mobile });
     if (existingUser) {
-      if (existingUser.email === email) {
-        return res.status(400).json({ message: 'Email already exists' });
-      }
       return res.status(400).json({ message: 'Mobile number already registered' });
     }
 
     // Generate verification code
     const verificationCode = generateVerificationCode();
-    const verificationCodeExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours expiry
+    const verificationCodeExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    console.log('🔵 [SIGNUP] Generated code:', verificationCode);
 
     // Create or update pending user
+    console.log('🔵 [SIGNUP] Saving pending user...');
     let pendingUser = await PendingUser.findOne({ mobile });
     if (pendingUser) {
       pendingUser.name = name;
-      pendingUser.email = email;
       pendingUser.password = password;
       pendingUser.verificationCode = verificationCode;
       pendingUser.verificationCodeExpiry = verificationCodeExpiry;
       await pendingUser.save();
+      console.log('🔵 [SIGNUP] Updated existing pending user');
     } else {
       pendingUser = new PendingUser({
         name,
-        email,
         mobile,
         password,
         verificationCode,
         verificationCodeExpiry,
       });
       await pendingUser.save();
+      console.log('🔵 [SIGNUP] Created new pending user');
     }
 
-    // Send verification EMAIL
-    let emailSent = false;
-
+    // Send verification SMS
+    let smsSent = false;
+    console.log('🔵 [SIGNUP] Sending SMS...');
     try {
-      await emailService.sendVerificationEmail(email, verificationCode);
-      emailSent = true;
-      console.log('✅ Verification EMAIL sent successfully to:', email);
-      console.log('📧 [TERMINAL LOG] Verification Code for', email, ':', verificationCode);
-    } catch (error) {
-      console.error('❌ Failed to send verification EMAIL:', error.message);
-      console.log('📧 [TERMINAL LOG] Verification Code for', email, ':', verificationCode);
+      await messageService.sendVerificationSms(mobile, verificationCode);
+      smsSent = true;
+      console.log('✅ [SIGNUP] SMS sent successfully to:', mobile);
+      console.log('📱 [TERMINAL LOG] Verification Code for', mobile, ':', verificationCode);
+    } catch (smsError) {
+      console.error('❌ [SIGNUP] Failed to send SMS:', smsError.message);
+      console.log('📱 [TERMINAL LOG] Verification Code for', mobile, ':', verificationCode);
     }
 
-    // Send response with Email status
     res.status(201).json({
-      message: emailSent
-        ? 'Verification code sent. Please check your email.'
-        : 'User data saved. Failed to send email, please use the resend option.',
-      emailSent: emailSent,
+      message: smsSent
+        ? 'Verification code sent. Please check your mobile.'
+        : 'User data saved. Failed to send SMS, please use the resend option.',
+      smsSent: smsSent,
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('❌ [SIGNUP] Error:', error.message);
+    console.error('❌ [SIGNUP] Stack:', error.stack);
     res.status(500).json({ message: 'Server error during signup', error: error.message });
   }
 };
@@ -100,25 +97,20 @@ exports.signup = async (req, res) => {
  */
 exports.login = async (req, res) => {
   try {
-    const { email, mobile, password } = req.body;
+    const { mobile, password } = req.body;
 
-    console.log('🔵 [BACKEND] Login request received:', { email, mobile, hasPassword: !!password });
+    console.log('🔵 [BACKEND] Login request received:', { mobile, hasPassword: !!password });
 
     if (!password) {
       return res.status(400).json({ message: 'Password is required' });
     }
 
-    if (!email && !mobile) {
-      return res.status(400).json({ message: 'Email or mobile number is required' });
+    if (!mobile) {
+      return res.status(400).json({ message: 'Mobile number is required' });
     }
 
-    // Find user by email or mobile
-    let user;
-    if (mobile) {
-      user = await User.findOne({ mobile });
-    } else {
-      user = await User.findOne({ email });
-    }
+    // Find user by mobile
+    const user = await User.findOne({ mobile });
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -128,14 +120,6 @@ exports.login = async (req, res) => {
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    // Check if user has mobile number (for backward compatibility)
-    if (!user.mobile) {
-      return res.status(403).json({
-        message: 'Please update your account with a mobile number. Contact support for assistance.',
-        needsMobileUpdate: true,
-      });
     }
 
     // No verification check required for login - users can login directly
@@ -149,7 +133,6 @@ exports.login = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email,
         mobile: user.mobile,
       },
     });
@@ -201,17 +184,15 @@ exports.verifyMobile = async (req, res) => {
     // Create final user record
     const user = new User({
       name: pendingUser.name,
-      email: pendingUser.email,
       mobile: pendingUser.mobile,
       password: pendingUser.password,
-      isEmailVerified: true,
       isMobileVerified: true,
     });
 
     await user.save();
 
     // Delete pending record
-    await PendingUser.deleteOne({ email });
+    await PendingUser.deleteOne({ mobile });
 
     // Generate token
     const token = generateToken(user._id);
@@ -222,7 +203,6 @@ exports.verifyMobile = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email,
         mobile: user.mobile,
       },
     });
@@ -299,9 +279,8 @@ exports.getCurrentUser = async (req, res) => {
     res.json({
       user: {
         id: user._id,
-        email: user.email,
+        name: user.name,
         mobile: user.mobile,
-        isEmailVerified: user.isEmailVerified,
         isMobileVerified: user.isMobileVerified,
       },
     });
@@ -312,29 +291,22 @@ exports.getCurrentUser = async (req, res) => {
 };
 
 /**
- * Request password reset
+ * Request password reset (Only mobile for now)
  */
 exports.requestPasswordReset = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { mobile } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
+    if (!mobile) {
+      return res.status(400).json({ message: 'Mobile number is required' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ mobile });
     if (!user) {
       // Don't reveal if user exists for security
       return res.json({
-        message: 'If an account exists with this email, a password reset code has been sent to your mobile.',
+        message: 'If an account exists with this mobile, a password reset code has been sent.',
         smsSent: true,
-      });
-    }
-
-    // Check if user has mobile number
-    if (!user.mobile) {
-      return res.status(400).json({
-        message: 'No mobile number associated with this account. Please contact support to reset your password.'
       });
     }
 
@@ -354,19 +326,19 @@ exports.requestPasswordReset = async (req, res) => {
     user.resetCodeExpiry = resetCodeExpiry;
     await user.save();
 
-    // Send reset EMAIL
-    let emailSent = false;
+    // Send reset SMS
+    let smsSent = false;
     try {
-      await emailService.sendPasswordResetEmail(user.email, resetCode);
-      emailSent = true;
-      console.log('✅ Password reset EMAIL sent successfully to:', user.email);
+      await messageService.sendPasswordResetSms(mobile, resetCode);
+      smsSent = true;
+      console.log('✅ Password reset SMS sent successfully to:', mobile);
     } catch (error) {
-      console.error('❌ Failed to send password reset EMAIL:', error.message);
+      console.error('❌ Failed to send password reset SMS:', error.message);
     }
 
     res.json({
-      message: 'If an account exists with this email, a password reset code has been sent to your email address.',
-      emailSent: emailSent,
+      message: 'If an account exists with this mobile, a password reset code has been sent.',
+      smsSent: smsSent,
     });
   } catch (error) {
     console.error('Request password reset error:', error);
@@ -379,13 +351,13 @@ exports.requestPasswordReset = async (req, res) => {
  */
 exports.verifyPasswordResetCode = async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const { mobile, code } = req.body;
 
-    if (!email || !code) {
-      return res.status(400).json({ message: 'Email and reset code are required' });
+    if (!mobile || !code) {
+      return res.status(400).json({ message: 'Mobile and reset code are required' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ mobile });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -410,17 +382,17 @@ exports.verifyPasswordResetCode = async (req, res) => {
  */
 exports.resetPassword = async (req, res) => {
   try {
-    const { email, code, newPassword } = req.body;
+    const { mobile, code, newPassword } = req.body;
 
-    if (!email || !code || !newPassword) {
-      return res.status(400).json({ message: 'Email, reset code, and new password are required' });
+    if (!mobile || !code || !newPassword) {
+      return res.status(400).json({ message: 'Mobile, reset code, and new password are required' });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ mobile });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -467,5 +439,3 @@ exports.verifyToken = (req, res, next) => {
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
-
-

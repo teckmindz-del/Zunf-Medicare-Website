@@ -11,7 +11,7 @@ const {
   CHUGHTAI_LAB_ID,
 } = require('../services/couponService');
 
-const REQUIRED_CUSTOMER_FIELDS = ['name', 'email', 'mobile', 'age', 'city'];
+const REQUIRED_CUSTOMER_FIELDS = ['name', 'mobile', 'age', 'city'];
 const ALLOWED_STATUSES = ['Received', 'Pending', 'Completed'];
 
 const buildConfirmationMessage = ({ order, couponNumber }) => {
@@ -140,6 +140,7 @@ exports.createOrder = async (req, res) => {
     console.log('✅ [ORDER] Order ID:', order._id);
     console.log('✅ [ORDER] Order created at:', order.createdAt);
     console.log('✅ [ORDER] Order status:', order.status);
+    console.log('✅ [ORDER] Customer mobile saved as:', order.customer.mobile);
     console.log('✅ [ORDER] Customer email:', order.customer.email);
     console.log('✅ [ORDER] Total items:', order.items.length);
     console.log('✅ [ORDER] Total amount:', order.totals.final);
@@ -167,24 +168,36 @@ exports.createOrder = async (req, res) => {
 
 exports.getOrders = async (req, res) => {
   try {
-    const { email } = req.query;
+    const { mobile } = req.query;
     let query = {};
 
-    // If email is provided, filter by customer email (case-insensitive)
-    if (email) {
-      const trimmedEmail = String(email).trim();
-      query = { 'customer.email': { $regex: new RegExp('^' + trimmedEmail + '$', 'i') } };
-      console.log('📋 [ORDERS] Fetching orders for email (CI):', trimmedEmail);
+    // If mobile is provided, filter by customer mobile OR email (handles mobile-as-email legacy cases)
+    if (mobile) {
+      const trimmedQuery = String(mobile).trim();
+      // Handle potential mangling where +92 was prepended to emails
+      const mangledQuery = (trimmedQuery.includes('@') && !trimmedQuery.startsWith('+'))
+        ? `+92${trimmedQuery}`
+        : trimmedQuery;
+
+      query = {
+        $or: [
+          { 'customer.mobile': trimmedQuery },
+          { 'customer.email': trimmedQuery },
+          { 'customer.mobile': mangledQuery }
+        ]
+      };
+      console.log('📋 [ORDERS] Fetching orders for:', trimmedQuery, mangledQuery !== trimmedQuery ? `(also checking ${mangledQuery})` : '');
     } else {
-      console.log('📋 [ORDERS] Fetching all orders (no email filter)');
+      console.log('📋 [ORDERS] Fetching all orders (no filter)');
     }
 
     const orders = await Order.find(query).sort({ createdAt: -1 }).lean();
 
-    console.log(`📋 [ORDERS] Match found: ${orders.length} order(s) for query: ${JSON.stringify(query)}`);
+    console.log(`📋 [ORDERS] Found ${orders.length} order(s) for query: "${mobile}"`);
     if (orders.length > 0) {
-      console.log('📋 [ORDERS] Newest order ID:', orders[0]._id);
-      console.log('📋 [ORDERS] Newest order email:', orders[0].customer.email);
+      console.log('📋 [ORDERS] Match found for mobile/email');
+    } else {
+      console.log('📋 [ORDERS] No orders found matching query:', JSON.stringify(query));
     }
 
     return res.json({ orders });

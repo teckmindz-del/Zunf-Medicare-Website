@@ -11,6 +11,7 @@ import { useState, Suspense } from "react";
 import { API_BASE_URL } from '@/config/api';
 import { createLead } from '@/lib/api';
 import { useToast } from "@/contexts/toast-context";
+import { SEO } from "@/components/seo";
 
 function ContactForm() {
   const [searchParams] = useSearchParams();
@@ -51,6 +52,11 @@ function ContactForm() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
+      <SEO
+        title="Contact Zunf Medicare | Book Appointment & Get Support"
+        description="Contact Zunf Medicare for appointments, medical services, and healthcare support. Reach our team for reliable assistance and quick responses to your needs."
+        canonicalPath="/contact"
+      />
       <SiteHeader />
       <main className="flex-1 py-12">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">

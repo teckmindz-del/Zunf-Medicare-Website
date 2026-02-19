@@ -8,6 +8,7 @@ import { useEffect, useState, useRef } from "react";
 import { getLabs, type Lab } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { searchLabsAndTests, type SearchResult } from "@/lib/search";
+import { SEO } from "@/components/seo";
 
 // Map lab IDs to their logo files
 const getLabLogo = (labId: string): string | null => {
@@ -114,6 +115,10 @@ export default function LabsPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
+      <SEO
+        title="Trusted Labs in Pakistan: Lab Test Discounts (2026) | Zunf Medicare"
+        description="Find trusted labs in Pakistan for accurate diagnostics. ISO-certified testing, fast results & affordable prices. Book your lab test online today"
+      />
       <SiteHeader />
       <main className="flex-1">
         {/* Hero Section */}
@@ -153,7 +158,7 @@ export default function LabsPage() {
                 {isSearching && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary animate-spin" />
                 )}
-                
+
                 {/* Search Results Dropdown */}
                 {showResults && searchResults.length > 0 && (
                   <Card className="absolute top-full mt-2 w-full max-h-96 overflow-y-auto bg-background/95 backdrop-blur-md border border-border/40 shadow-xl z-50">
@@ -198,8 +203,8 @@ export default function LabsPage() {
                                   </p>
                                   {result.price && (
                                     <p className="text-xs text-primary font-medium mt-1">
-                                      Rs. {result.discountedPrice && result.discountedPrice < result.price 
-                                        ? result.discountedPrice 
+                                      Rs. {result.discountedPrice && result.discountedPrice < result.price
+                                        ? result.discountedPrice
                                         : result.price}
                                     </p>
                                   )}
@@ -261,7 +266,7 @@ export default function LabsPage() {
                         />
                       </div>
                     )}
-                    
+
                     <div className="flex flex-col gap-4 relative z-10">
                       <div className="flex items-start gap-4">
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-lg group-hover:scale-110 transition-transform overflow-hidden flex-shrink-0">

@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,12 @@ import { Footer } from "@/components/sections/footer";
 import { Loader2, ArrowLeft } from "lucide-react";
 
 function AuthForm() {
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const {
     login,
     signup,
-    verifyEmail,
+    verifyMobile,
     resendVerificationCode,
     requestPasswordReset,
     verifyPasswordResetCode,
@@ -25,7 +25,6 @@ function AuthForm() {
 
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [countryCode, setCountryCode] = useState("+92");
   const [mobile, setMobile] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
@@ -40,13 +39,15 @@ function AuthForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
+  const [verifyingMobile, setVerifyingMobile] = useState("");
 
   useEffect(() => {
-    const signupParam = searchParams.get('signup');
-    if (signupParam === 'true') {
+    if (location.pathname === '/signup') {
       setIsLogin(false);
+    } else {
+      setIsLogin(true);
     }
-  }, [searchParams]);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -72,12 +73,13 @@ function AuthForm() {
         }
 
         const fullMobile = countryCode + mobile;
-        const result = await signup(name, email, fullMobile, password);
+        const result = await signup(name, fullMobile, password);
+        setVerifyingMobile(fullMobile);
         setShowVerification(true);
-        if (result.emailSent) {
-          setSuccess("Account created! Please check your email for verification code.");
+        if (result.smsSent) {
+          setSuccess("Account created! Please check your mobile for verification code.");
         } else {
-          setSuccess("Account created! Email sending failed. Please use 'Resend verification code' below.");
+          setSuccess("Account created! SMS sending failed. Please use 'Resend verification code' below.");
           setError(""); // Clear any previous errors
         }
       }
@@ -85,7 +87,13 @@ function AuthForm() {
       const error = err as Error;
       setError(error.message || "An error occurred");
       if (error.message?.includes("verify")) {
-        setShowVerification(true);
+        // If we know the mobile number (e.g. from signup attempt state), we could set it roughly,
+        // but it's better to ask user to input it or handle it gracefully.
+        // For now, assume it's the one they just typed if signing up.
+        if (!isLogin) {
+          setVerifyingMobile(countryCode + mobile);
+          setShowVerification(true);
+        }
       }
     } finally {
       setLoading(false);
@@ -98,11 +106,13 @@ function AuthForm() {
     setLoading(true);
 
     try {
-      await verifyEmail(email, verificationCode);
-      setSuccess("Email verified successfully! You can now login.");
+      await verifyMobile(verifyingMobile, verificationCode);
+      setSuccess("Mobile verified successfully! You can now login.");
       setShowVerification(false);
       setIsLogin(true);
       setVerificationCode("");
+      // Pre-fill login mobile for convenience
+      setLoginMobile(verifyingMobile);
     } catch (err) {
       const error = err as Error;
       setError(error.message || "Verification failed");
@@ -116,11 +126,11 @@ function AuthForm() {
     setSuccess("");
     setLoading(true);
     try {
-      const result = await resendVerificationCode(email);
-      if (result.emailSent) {
-        setSuccess("Verification code resent! Please check your email.");
+      const result = await resendVerificationCode(verifyingMobile);
+      if (result.smsSent) {
+        setSuccess("Verification code resent! Please check your mobile.");
       } else {
-        setError("Failed to send email. Please try again or contact support.");
+        setError("Failed to send SMS. Please try again or contact support.");
       }
     } catch (err) {
       const error = err as Error;
@@ -137,12 +147,21 @@ function AuthForm() {
     setLoading(true);
 
     try {
-      const result = await requestPasswordReset(email);
-      if (result.emailSent) {
-        setSuccess("Password reset code sent! Please check your email.");
+      // Use loginMobile or prompt for it
+      const mobileToReset = loginMobile || (countryCode + mobile); // Fallback logic
+
+      // If we are in forgot password view, we need an input for mobile if not already set.
+      // But let's assume we use a state for forgotPasswordMobile if we want to be clean.
+      // For now reusing loginMobile since it's the most likely entry point.
+
+      const result = await requestPasswordReset(loginMobile);
+      setVerifyingMobile(loginMobile);
+
+      if (result.smsSent) {
+        setSuccess("Password reset code sent! Please check your mobile.");
         setShowResetPassword(true);
       } else {
-        setSuccess("If an account exists with this email, a reset code has been sent to your email address.");
+        setSuccess("If an account exists with this mobile, a reset code has been sent.");
         setShowResetPassword(true);
       }
     } catch (err) {
@@ -160,9 +179,9 @@ function AuthForm() {
     setLoading(true);
 
     try {
-      await verifyPasswordResetCode(email, verificationCode);
+      await verifyPasswordResetCode(verifyingMobile, verificationCode);
       setSuccess("Reset code verified! Please enter your new password.");
-      // The form will automatically show password reset when verificationCode is set and showResetPassword is true
+      // The form will automatically show password reset creation when verificationCode is set and showResetPassword is true
     } catch (err) {
       const error = err as Error;
       setError(error.message || "Failed to verify reset code");
@@ -189,18 +208,18 @@ function AuthForm() {
     setLoading(true);
 
     try {
-      await resetPassword(email, verificationCode, newPassword);
+      await resetPassword(verifyingMobile, verificationCode, newPassword);
       setSuccess("Password reset successfully! You can now login with your new password.");
       // Reset all states and go back to login
       setTimeout(() => {
         setShowForgotPassword(false);
         setShowResetPassword(false);
-        setIsLogin(true);
+        navigate("/login");
         setVerificationCode("");
         setNewPassword("");
         setConfirmPassword("");
-        setEmail("");
-        setPassword("");
+        setLoginMobile(verifyingMobile); // Pre-fill
+        setError("");
         setSuccess("");
       }, 2000);
     } catch (err) {
@@ -219,7 +238,7 @@ function AuthForm() {
         <main className="flex-1 flex items-center justify-center px-4 py-12">
           <Card className="w-full max-w-md p-6">
             <Link
-              to="/auth"
+              to="/login"
               className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4"
               onClick={() => {
                 setShowForgotPassword(false);
@@ -227,7 +246,6 @@ function AuthForm() {
                 setVerificationCode("");
                 setNewPassword("");
                 setConfirmPassword("");
-                setEmail("");
                 setError("");
                 setSuccess("");
               }}
@@ -297,7 +315,7 @@ function AuthForm() {
         <main className="flex-1 flex items-center justify-center px-4 py-12">
           <Card className="w-full max-w-md p-6">
             <Link
-              to="/auth"
+              to="/login"
               className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4"
               onClick={() => {
                 setShowForgotPassword(false);
@@ -312,7 +330,7 @@ function AuthForm() {
             </Link>
             <h2 className="text-2xl font-bold mb-4">Enter Reset Code</h2>
             <p className="text-muted-foreground mb-6">
-              We&apos;ve sent a password reset code to your email address. Please enter it below.
+              We&apos;ve sent a password reset code to your mobile number <strong>{verifyingMobile}</strong>. Please enter it below.
             </p>
             {error && (
               <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded text-destructive text-sm">
@@ -363,11 +381,10 @@ function AuthForm() {
         <main className="flex-1 flex items-center justify-center px-4 py-12">
           <Card className="w-full max-w-md p-6">
             <Link
-              to="/auth"
+              to="/login"
               className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4"
               onClick={() => {
                 setShowForgotPassword(false);
-                setEmail("");
                 setError("");
                 setSuccess("");
               }}
@@ -377,7 +394,7 @@ function AuthForm() {
             </Link>
             <h2 className="text-2xl font-bold mb-4">Forgot Password</h2>
             <p className="text-muted-foreground mb-6">
-              Enter your email address and we&apos;ll send a reset code to your registered email.
+              Enter your mobile number and we&apos;ll send a reset code to you via SMS.
             </p>
             {error && (
               <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded text-destructive text-sm">
@@ -391,15 +408,18 @@ function AuthForm() {
             )}
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div>
-                <Label htmlFor="forgotEmail">Email</Label>
+                <Label htmlFor="forgotMobile">Mobile Number</Label>
                 <Input
-                  id="forgotEmail"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
+                  id="forgotMobile"
+                  type="tel"
+                  value={loginMobile}
+                  onChange={(e) => setLoginMobile(e.target.value)}
+                  placeholder="+923001234567"
                   required
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Include country code (e.g., +92)
+                </p>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? (
@@ -425,13 +445,13 @@ function AuthForm() {
         <SiteHeader />
         <main className="flex-1 flex items-center justify-center px-4 py-12">
           <Card className="w-full max-w-md p-6">
-            <Link to="/auth" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4">
+            <Link to="/login" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Link>
-            <h2 className="text-2xl font-bold mb-4">Verify Your Email</h2>
+            <h2 className="text-2xl font-bold mb-4">Verify Your Mobile</h2>
             <p className="text-muted-foreground mb-6">
-              We&apos;ve sent a verification code to your email address. Please enter it below.
+              We&apos;ve sent a verification code to <strong>{verifyingMobile}</strong>. Please enter it below.
             </p>
             {error && (
               <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded text-destructive text-sm">
@@ -463,7 +483,7 @@ function AuthForm() {
                     Verifying...
                   </>
                 ) : (
-                  "Verify Email"
+                  "Verify Mobile"
                 )}
               </Button>
             </form>
@@ -544,49 +564,37 @@ function AuthForm() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      required
-                    />
+                    <Label htmlFor="mobile">Mobile Number</Label>
+                    <div className="flex gap-2">
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className="border border-border rounded-md px-3 py-2 text-sm bg-background text-foreground w-24"
+                      >
+                        <option value="+92">🇵🇰 +92</option>
+                        <option value="+91">🇮🇳 +91</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+971">🇦🇪 +971</option>
+                        <option value="+966">🇸🇦 +966</option>
+                      </select>
+                      <Input
+                        id="mobile"
+                        type="tel"
+                        value={mobile}
+                        onChange={(e) => setMobile(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="3001234567"
+                        required
+                        className="flex-1"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter your mobile number without country code
+                    </p>
                   </div>
                 </>
               )}
-              {!isLogin && (
-                <div>
-                  <Label htmlFor="mobile">Mobile Number</Label>
-                  <div className="flex gap-2">
-                    <select
-                      value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
-                      className="border border-border rounded-md px-3 py-2 text-sm bg-background text-foreground w-24"
-                    >
-                      <option value="+92">🇵🇰 +92</option>
-                      <option value="+91">🇮🇳 +91</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+971">🇦🇪 +971</option>
-                      <option value="+966">🇸🇦 +966</option>
-                    </select>
-                    <Input
-                      id="mobile"
-                      type="tel"
-                      value={mobile}
-                      onChange={(e) => setMobile(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="3001234567"
-                      required
-                      className="flex-1"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Enter your mobile number without country code
-                  </p>
-                </div>
-              )}
+              {/* Removed Email Input */}
               <div>
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -643,11 +651,15 @@ function AuthForm() {
               <button
                 type="button"
                 onClick={() => {
-                  setIsLogin(!isLogin);
+                  if (isLogin) {
+                    navigate("/signup");
+                  } else {
+                    navigate("/login");
+                  }
                   setError("");
                   setSuccess("");
                   setLoginMobile("");
-                  setEmail("");
+                  setName(""); // Clear name
                   setMobile("");
                   setPassword("");
                 }}
@@ -685,5 +697,3 @@ export default function AuthPage() {
     </Suspense>
   );
 }
-
-

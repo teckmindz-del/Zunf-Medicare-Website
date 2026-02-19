@@ -264,7 +264,7 @@ export function SiteHeader() {
                   variant="outline"
                   className="bg-white/10 backdrop-blur-md border-primary/30 hover:bg-white/20 transition-all"
                 >
-                  <Link to="/auth">Login</Link>
+                  <Link to="/login">Login</Link>
                 </Button>
                 <Button
                   asChild
@@ -272,7 +272,7 @@ export function SiteHeader() {
                   variant="outline"
                   className="bg-white/10 backdrop-blur-md border-primary/30 hover:bg-white/20 transition-all"
                 >
-                  <Link to="/auth?signup=true">Sign Up</Link>
+                  <Link to="/signup">Sign Up</Link>
                 </Button>
               </>
             )}
@@ -333,7 +333,7 @@ export function SiteHeader() {
                   variant="outline"
                   className="h-9 px-2 text-xs bg-white/10 backdrop-blur-md border-primary/30 hover:bg-white/20 transition-all"
                 >
-                  <Link to="/auth">Login</Link>
+                  <Link to="/login">Login</Link>
                 </Button>
                 <Button
                   asChild
@@ -341,7 +341,7 @@ export function SiteHeader() {
                   variant="outline"
                   className="h-9 px-2 text-xs bg-white/10 backdrop-blur-md border-primary/30 hover:bg-white/20 transition-all"
                 >
-                  <Link to="/auth?signup=true">Sign Up</Link>
+                  <Link to="/signup">Sign Up</Link>
                 </Button>
               </>
             )}

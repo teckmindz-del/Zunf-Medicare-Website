@@ -37,24 +37,24 @@ export default function HistoryPage() {
 
   useEffect(() => {
     const fetchUserOrders = async () => {
-      // If user is logged in, ONLY use logged-in user's email (don't rely on localStorage or URL params)
-      let email: string | null = null;
-      
-      if (isAuthenticated && user?.email) {
-        // User is logged in - always use logged-in email
-        email = user.email;
+      // Use mobile number for filtering orders
+      let mobile: string | null = null;
+
+      if (isAuthenticated) {
+        // User is logged in - use mobile or email
+        mobile = user?.mobile || user?.email || null;
       } else {
         // User not logged in - get from URL params or localStorage
-        email = searchParams.get('email') || localStorage.getItem('lastOrderEmail');
+        mobile = searchParams.get('mobile') || localStorage.getItem('lastOrderMobile');
       }
 
-      // Update URL to include email if we have it but it's not in the URL
-      if (email && !searchParams.get('email')) {
-        navigate(`/history?email=${encodeURIComponent(email)}`, { replace: true });
+      // Update URL to include mobile if we have it but it's not in the URL
+      if (mobile && !searchParams.get('mobile')) {
+        navigate(`/history?mobile=${encodeURIComponent(mobile)}`, { replace: true });
       }
 
-      if (!email) {
-        setError("Please log in or provide an email to view your order history.");
+      if (!mobile) {
+        setError("Please log in or provide your mobile number to view your order history.");
         setLoading(false);
         return;
       }
@@ -62,10 +62,10 @@ export default function HistoryPage() {
       setLoading(true);
       setError("");
       try {
-        console.log('📋 [HISTORY] Fetching orders for email:', email);
+        console.log('📋 [HISTORY] Fetching orders for mobile:', mobile);
         console.log('📋 [HISTORY] User is authenticated:', isAuthenticated);
-        console.log('📋 [HISTORY] Logged-in user email:', user?.email);
-        const data = await getUserOrders(email);
+        console.log('📋 [HISTORY] Logged-in user mobile:', user?.mobile);
+        const data = await getUserOrders(mobile); // Now accepts mobile
         console.log('📋 [HISTORY] Received orders:', data.length);
         setOrders(data);
         if (data.length === 0) {
@@ -126,7 +126,7 @@ export default function HistoryPage() {
             <Card className="p-6 border border-primary/20 bg-card">
               <div className="text-center">
                 <p className="text-muted-foreground">{error}</p>
-                {!user?.email && (
+                {!user?.mobile && (
                   <Link to="/health-card/auth">
                     <Button className="mt-4">Log In</Button>
                   </Link>

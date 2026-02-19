@@ -70,17 +70,17 @@ export default function AccountPage() {
     // Fetch orders logic
     useEffect(() => {
         const fetchUserOrders = async () => {
-            let email: string | null = null;
+            let identifier: string | null = null;
 
-            if (isAuthenticated && user?.email) {
-                email = user.email;
+            if (isAuthenticated) {
+                // Use mobile first (current auth system), fall back to email
+                identifier = user?.mobile || user?.email || null;
             } else {
-                email = searchParams.get('email') || localStorage.getItem('lastOrderEmail');
+                identifier = searchParams.get('mobile') || searchParams.get('email')
+                    || localStorage.getItem('lastOrderMobile') || localStorage.getItem('lastOrderEmail');
             }
 
-            const isAdmin = email === "admin@zunf.com";
-
-            if (!email && !isAdmin) {
+            if (!identifier) {
                 setLoading(false);
                 return;
             }
@@ -88,17 +88,8 @@ export default function AccountPage() {
             setLoading(true);
             setError("");
             try {
-                let data: Order[] = [];
-                if (email) {
-                    data = await getUserOrders(email).catch(() => []);
-                }
-
-                if (data.length === 0) {
-                    console.log("No orders found from API.");
-                    setOrders([]);
-                } else {
-                    setOrders(data);
-                }
+                const data = await getUserOrders(identifier).catch(() => []);
+                setOrders(data);
             } catch (err) {
                 console.error('Error fetching orders:', err);
                 setError("Failed to load history.");

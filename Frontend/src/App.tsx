@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { CartProvider } from '@/contexts/cart-context'
 import { AuthProvider } from '@/contexts/auth-context'
 import { ToastProvider } from '@/contexts/toast-context'
@@ -17,6 +17,7 @@ import EHRPage from '@/pages/EHRPage'
 import HistoryPage from '@/pages/HistoryPage'
 import AccountPage from '@/pages/AccountPage'
 import AdminPage from '@/pages/AdminPage'
+import ClientsPage from '@/pages/ClientsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 // Health Card Pages
@@ -44,10 +45,13 @@ function App() {
           <Preloader />
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/login" element={<AuthPage />} />
+            <Route path="/signup" element={<AuthPage />} />
+            <Route path="/auth" element={<Navigate to="/login" replace />} />
             <Route path="/booking" element={<BookingPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/contact-us" element={<Navigate to="/contact" replace />} />
             <Route path="/ehr" element={<EHRPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/account" element={<AccountPage />} />
@@ -68,6 +72,7 @@ function App() {
             <Route path="/services/health-program" element={<HealthProgramPage />} />
             <Route path="/services/school-health-program" element={<SchoolHealthProgramPage />} />
             <Route path="/services/corporate-health-screening" element={<CorporateHealthScreeningPage />} />
+            <Route path="/clients" element={<ClientsPage />} />
             <Route path="/about" element={<AboutPage />} />
 
             {/* 404 */}
